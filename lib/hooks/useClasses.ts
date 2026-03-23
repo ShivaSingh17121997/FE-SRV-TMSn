@@ -15,8 +15,8 @@ export interface ApiClass {
     amount: number;
     notes?: string;
     status: 'scheduled' | 'ongoing' | 'completed' | 'cancelled' | 'rescheduled';
-    conducted?: boolean;
-    missed?: boolean;
+    conducted: boolean;
+    missed: boolean;
     actualStartTime?: string;
     actualEndTime?: string;
     createdAt: string;
@@ -83,6 +83,18 @@ export function useUpdateClass(id: string) {
             toast.success('Class updated successfully');
         },
         onError: (err: Error) => toast.error(err.message || 'Failed to update class'),
+    });
+}
+
+export function useEndClass() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (classId: string) => apiPost<ClassResponse>('/classes/end', { classId }),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: classKeys.all });
+            toast.success('Class marked as completed');
+        },
+        onError: (err: Error) => toast.error(err.message || 'Failed to complete class'),
     });
 }
 

@@ -1,8 +1,14 @@
-import { type ApiClass } from "@/lib/hooks/useClasses";
+import { type ApiClass, useEndClass } from "@/lib/hooks/useClasses";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Check, MoreVertical } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface ClassTableProps {
     data: ApiClass[];
@@ -19,6 +25,7 @@ export default function ClassTable({
     itemsPerPage, setItemsPerPage,
     currentPage, setCurrentPage
 }: ClassTableProps) {
+    const { mutate: endClass } = useEndClass();
 
     const totalPages = Math.ceil(data.length / itemsPerPage) || 1;
     const paginatedData = data.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
@@ -36,6 +43,26 @@ export default function ClassTable({
         return map[status] ?? 'bg-gray-100 text-gray-700';
     };
 
+    const isTimeOver = (dateStr: string, timeStr: string, duration: number) => {
+        try {
+            // Extract the date part in local timezone to match UI display
+            const d = new Date(dateStr);
+            const datePart = format(d, 'yyyy-MM-dd');
+            
+            // Construct a local date time: "2026-03-23T10:00"
+            const classStartTime = new Date(`${datePart}T${timeStr}`);
+            
+            if (isNaN(classStartTime.getTime())) return false;
+
+            // Define end time as start time + duration
+            const classEndTime = new Date(classStartTime.getTime() + duration * 60000);
+            
+            return new Date() > classEndTime;
+        } catch (e) {
+            return false;
+        }
+    };
+
     return (
         <div className="flex flex-col h-full">
             <div className="overflow-x-auto flex-1">
@@ -51,10 +78,9 @@ export default function ClassTable({
                         {paginatedData.map((c, i) => (
                             <tr
                                 key={c._id}
-                                onClick={() => onRowClick(c)}
                                 className="group hover:bg-blue-50/50 dark:hover:bg-blue-900/10 transition-colors cursor-pointer border-b border-border/40 last:border-0"
                             >
-                                <td className="px-4 py-3">
+                                <td className="px-4 py-3" onClick={() => onRowClick(c)}>
                                     <div className="flex items-center gap-2">
                                         <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 text-xs font-bold flex-shrink-0 group-hover:scale-110 transition-transform">
                                             {getStudentName(c).split(' ').map(n => n[0]).join('').slice(0, 2)}
@@ -62,18 +88,36 @@ export default function ClassTable({
                                         <span className="font-medium text-foreground">{getStudentName(c)}</span>
                                     </div>
                                 </td>
-                                <td className="px-4 py-3 text-muted-foreground">{c.subject}</td>
-                                <td className="px-4 py-3 font-medium text-foreground">{c.topic}</td>
-                                <td className="px-4 py-3 text-muted-foreground">
+                                <td className="px-4 py-3 text-muted-foreground" onClick={() => onRowClick(c)}>{c.subject}</td>
+                                <td className="px-4 py-3 font-medium text-foreground" onClick={() => onRowClick(c)}>{c.topic}</td>
+                                <td className="px-4 py-3 text-muted-foreground" onClick={() => onRowClick(c)}>
                                     <div>{format(new Date(c.date), 'dd MMM yyyy')}</div>
                                     <div className="text-xs">{c.time}</div>
                                 </td>
-                                <td className="px-4 py-3 text-muted-foreground">{c.duration} min</td>
-                                <td className="px-4 py-3 font-semibold text-emerald-600 dark:text-emerald-500">₹{c.amount}</td>
+                                <td className="px-4 py-3 text-muted-foreground" onClick={() => onRowClick(c)}>{c.duration} min</td>
+                                <td className={`px-4 py-3 font-semibold ${c.status === 'completed' ? 'text-emerald-600 dark:text-emerald-500' : 'text-emerald-600/40 dark:text-emerald-500/40'}`} onClick={() => onRowClick(c)}>₹{c.amount}</td>
                                 <td className="px-4 py-3">
-                                    <Badge className={`text-xs border-0 ${getStatusColor(c.status)}`}>
-                                        {c.status}
-                                    </Badge>
+                                    <DropdownMenu>
+                                        <DropdownMenuTrigger className="focus:outline-none">
+                                            <Badge className={`text-xs border-0 cursor-pointer ${getStatusColor(c.status)} hover:opacity-80 transition-opacity`}>
+                                                {c.status}
+                                            </Badge>
+                                        </DropdownMenuTrigger>
+                                        <DropdownMenuContent align="end" className="w-56">
+                                            {(c.status === 'ongoing' || (c.status === 'scheduled' && isTimeOver(c.date, c.time, c.duration))) && (
+                                                <DropdownMenuItem
+                                                    className="text-green-600 cursor-pointer font-medium gap-2 focus:text-green-600"
+                                                    onClick={() => endClass(c._id)}
+                                                >
+                                                    <Check className="w-4 h-4" />
+                                                    Mark as Completed
+                                                </DropdownMenuItem>
+                                            )}
+                                            <DropdownMenuItem className="cursor-pointer" onClick={() => onRowClick(c)}>
+                                                View Class Details
+                                            </DropdownMenuItem>
+                                        </DropdownMenuContent>
+                                    </DropdownMenu>
                                 </td>
                             </tr>
                         ))}
@@ -88,7 +132,7 @@ export default function ClassTable({
                         {data.length > 0 && (
                             <tr className="bg-muted/20 border-t-2 border-border/40 font-semibold">
                                 <td colSpan={5} className="px-4 py-3 text-xs uppercase tracking-wider text-muted-foreground">Total Summary</td>
-                                <td className="px-4 py-3 text-emerald-600">₹{data.reduce((acc, curr) => acc + curr.amount, 0).toLocaleString('en-IN')}</td>
+                                <td className="px-4 py-3 text-emerald-600">₹{data.filter(c => c.status === 'completed').reduce((acc, curr) => acc + curr.amount, 0).toLocaleString('en-IN')}</td>
                                 <td></td>
                             </tr>
                         )}

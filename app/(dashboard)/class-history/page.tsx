@@ -2,6 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { useClasses, type ApiClass } from '@/lib/hooks/useClasses';
+import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, AlertCircle, LayoutList, Calendar as CalendarIcon } from 'lucide-react';
 import { isToday, isThisWeek, isThisMonth } from 'date-fns';
 import { Button } from '@/components/ui/button';
@@ -14,7 +15,8 @@ import ClassModal from './components/ClassModal';
 import CalendarView from './components/CalendarView';
 
 export default function ClassHistoryPage() {
-    const { data, isLoading, isError, error } = useClasses();
+    const { user } = useAuth();
+    const { data, isLoading, isError, error } = useClasses({ teacherId: user?._id });
     const classes = data?.classes ?? [];
 
     // Filter States

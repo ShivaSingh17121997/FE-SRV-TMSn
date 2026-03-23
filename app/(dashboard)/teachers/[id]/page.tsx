@@ -8,6 +8,7 @@ import { usePayments } from '@/lib/hooks/usePayments';
 import { useReports } from '@/lib/hooks/useReports';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, MapPin, Mail, Phone, BookOpen, GraduationCap, Users, DollarSign, TrendingUp, Video, Loader2, AlertCircle } from 'lucide-react';
@@ -19,10 +20,10 @@ export default function TeacherDetailsPage() {
     const teacherId = typeof id === 'string' ? id : '';
 
     const { data: teacher, isLoading: loadingTeacher, isError: teacherError } = useTeacher(teacherId);
-    const { data: studentsData, isLoading: loadingStudents } = useStudents();
-    const { data: classesData, isLoading: loadingClasses } = useClasses();
-    const { data: paymentsData, isLoading: loadingPayments } = usePayments();
-    const { data: reportsData, isLoading: loadingReports } = useReports();
+    const { data: studentsData, isLoading: loadingStudents } = useStudents({ teacherId, limit: '100' });
+    const { data: classesData, isLoading: loadingClasses } = useClasses({ teacherId, limit: 100 });
+    const { data: paymentsData, isLoading: loadingPayments } = usePayments({ teacherId, limit: 100 });
+    const { data: reportsData, isLoading: loadingReports } = useReports({ teacherId, limit: 100 });
 
     if (loadingTeacher) return (
         <div className="flex items-center justify-center py-20">
@@ -38,20 +39,15 @@ export default function TeacherDetailsPage() {
         </div>
     );
 
-    const students = (studentsData?.students ?? []).filter((s) => 
-        typeof s.teacherId === 'string' ? s.teacherId === teacherId : (s.teacherId as any)?._id === teacherId
-    );
-    const classes = (classesData?.classes ?? []).filter((c) => 
-        typeof c.teacherId === 'string' ? c.teacherId === teacherId : (c.teacherId as any)?._id === teacherId
-    );
-    const payments = (paymentsData?.payments ?? []).filter((p) => 
-        typeof p.teacherId === 'string' ? p.teacherId === teacherId : (p.teacherId as any)?._id === teacherId
-    );
-    const reports = (reportsData?.reports ?? []).filter((r) => 
-        typeof r.teacherId === 'string' ? r.teacherId === teacherId : (r.teacherId as any)?._id === teacherId
-    );
+    const students = studentsData?.students ?? [];
+    const classes = classesData?.classes ?? [];
+    const payments = paymentsData?.payments ?? [];
+    const reports = (reportsData as any)?.reports ?? [];
 
-    const totalEarned = payments.filter(p => p.status === 'paid').reduce((s, p) => s + p.amount, 0);
+    const totalEarned = classes
+        .filter(c => c.status === 'completed')
+        .reduce((s, c) => s + (c.amount || 0), 0);
+        
     const completedClasses = classes.filter(c => c.status === 'completed');
 
     const stats = [
@@ -175,82 +171,122 @@ export default function TeacherDetailsPage() {
             </div>
 
             {/* Tabs */}
-            <Tabs defaultValue="students">
-                <TabsList>
-                    <TabsTrigger value="students">Students ({students.length})</TabsTrigger>
-                    <TabsTrigger value="classes">Classes ({classes.length})</TabsTrigger>
-                    <TabsTrigger value="performance">Performance</TabsTrigger>
+            <Tabs defaultValue="students" className="w-full">
+                <TabsList className="bg-muted/50 p-1 h-12 rounded-2xl">
+                    <TabsTrigger value="students" className="rounded-xl px-6">Students ({students.length})</TabsTrigger>
+                    <TabsTrigger value="classes" className="rounded-xl px-6">Classes ({classes.length})</TabsTrigger>
+                    <TabsTrigger value="reports" className="rounded-xl px-6">Reports ({reports.length})</TabsTrigger>
+                    <TabsTrigger value="performance" className="rounded-xl px-6">Performance</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="students" className="mt-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                        {students.map((student) => (
-                            <Card key={student._id} className="shadow-sm border" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-                                <CardContent className="p-4 flex items-center gap-3">
-                                    <div className="w-10 h-10 rounded-full bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 font-bold text-sm flex-shrink-0">
-                                        {student.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
-                                    </div>
-                                    <div className="flex-1 min-w-0">
-                                        <p className="font-medium text-sm" style={{ color: 'var(--foreground)' }}>{student.name}</p>
-                                        <p className="text-xs" style={{ color: 'var(--muted-foreground)' }}>{student.class} · {student.subject} · {student.school}</p>
-                                    </div>
-                                    <Badge className={`text-xs border-0 ${statusBadge(student.status)}`}>{student.status}</Badge>
-                                </CardContent>
-                            </Card>
-                        ))}
-                        {students.length === 0 && <p className="col-span-2 text-center py-8 text-sm" style={{ color: 'var(--muted-foreground)' }}>No students assigned</p>}
+                <TabsContent value="students" className="mt-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {students.length === 0 ? (
+                            <p className="col-span-full text-center py-12 text-muted-foreground bg-accent/20 rounded-2xl border border-dashed">No students assigned to this teacher.</p>
+                        ) : (
+                            students.map((student) => (
+                                <Card key={student._id} className="shadow-sm border transition-all hover:shadow-md" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+                                    <CardContent className="p-4 flex items-center gap-3">
+                                        <div className="w-11 h-11 rounded-2xl bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 font-bold text-sm flex-shrink-0">
+                                            {student.name.split(' ').map(n => n[0]).join('').slice(0, 2)}
+                                        </div>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-semibold text-sm truncate text-foreground">{student.name}</p>
+                                            <p className="text-[11px] text-muted-foreground truncate">{student.class} · {student.subject}</p>
+                                        </div>
+                                        <Badge className={`text-[10px] h-5 px-1.5 uppercase tracking-wide font-bold border-0 ${statusBadge(student.status)}`}>{student.status}</Badge>
+                                    </CardContent>
+                                </Card>
+                            ))
+                        )}
                     </div>
                 </TabsContent>
 
-                <TabsContent value="classes" className="mt-4">
-                    <Card className="shadow-sm border" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+                <TabsContent value="classes" className="mt-6">
+                    <Card className="shadow-sm border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
                         <CardContent className="p-0">
                             <div className="overflow-x-auto">
                                 <table className="w-full text-sm">
                                     <thead>
-                                        <tr style={{ background: 'var(--muted)', borderBottom: '1px solid var(--border)' }}>
-                                            {['Student', 'Topic', 'Date', 'Duration', 'Amount', 'Status'].map((h) => (
-                                                <th key={h} className="text-left px-4 py-3 text-xs font-semibold" style={{ color: 'var(--muted-foreground)' }}>{h}</th>
+                                        <tr className="bg-muted/50 border-b">
+                                            {['Student', 'Topic', 'Date', 'Amount', 'Status'].map((h) => (
+                                                <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
                                             ))}
                                         </tr>
                                     </thead>
-                                    <tbody>
-                                        {classes.map((c, i) => {
-                                            const studentName = c.studentId && typeof c.studentId === 'object' ? c.studentId.name : 'Unknown';
-                                            return (
-                                                <tr key={c._id} style={{ borderBottom: i < classes.length - 1 ? '1px solid var(--border)' : 'none' }}
-                                                    className="hover:bg-blue-50/50 dark:hover:bg-blue-900/10">
-                                                    <td className="px-4 py-3 font-medium" style={{ color: 'var(--foreground)' }}>{studentName}</td>
-                                                    <td className="px-4 py-3" style={{ color: 'var(--foreground)' }}>{c.topic}</td>
-                                                    <td className="px-4 py-3" style={{ color: 'var(--muted-foreground)' }}>{format(new Date(c.date), 'dd MMM yyyy')}</td>
-                                                    <td className="px-4 py-3" style={{ color: 'var(--muted-foreground)' }}>{c.duration} min</td>
-                                                    <td className="px-4 py-3 font-semibold text-emerald-600">₹{c.amount}</td>
-                                                    <td className="px-4 py-3"><Badge className={`text-xs border-0 ${statusBadge(c.status)}`}>{c.status}</Badge></td>
-                                                </tr>
-                                            );
-                                        })}
-                                        {classes.length === 0 && (
-                                            <tr><td colSpan={6} className="text-center py-8 text-sm" style={{ color: 'var(--muted-foreground)' }}>No classes recorded</td></tr>
+                                    <TableBody>
+                                        {classes.length === 0 ? (
+                                            <tr><td colSpan={5} className="text-center py-20 text-muted-foreground bg-accent/5">No class history found</td></tr>
+                                        ) : (
+                                            classes.map((c, i) => (
+                                                <TableRow key={c._id} className="hover:bg-muted/30 transition-colors border-b last:border-0 border-border/40">
+                                                    <TableCell className="px-4 py-3 font-semibold text-foreground">
+                                                        {c.studentId && typeof c.studentId === 'object' ? c.studentId.name : 'Unknown'}
+                                                    </TableCell>
+                                                    <TableCell className="px-4 py-3 text-foreground">{c.topic}</TableCell>
+                                                    <TableCell className="px-4 py-3 text-muted-foreground">{format(new Date(c.date), 'dd MMM yyyy')}</TableCell>
+                                                    <TableCell className="px-4 py-3 font-bold text-emerald-600">₹{c.amount}</TableCell>
+                                                    <TableCell className="px-4 py-3"><Badge className={`text-[10px] border-0 h-5 px-1.5 font-bold ${statusBadge(c.status)}`}>{c.status}</Badge></TableCell>
+                                                </TableRow>
+                                            ))
                                         )}
-                                    </tbody>
+                                    </TableBody>
                                 </table>
                             </div>
                         </CardContent>
                     </Card>
                 </TabsContent>
 
-                <TabsContent value="performance" className="mt-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <TabsContent value="reports" className="mt-6">
+                    <div className="space-y-4">
+                        {reports.length === 0 ? (
+                            <div className="text-center py-20 text-muted-foreground bg-accent/20 rounded-2xl border border-dashed">
+                                <TrendingUp className="w-8 h-8 mx-auto mb-3 opacity-20" />
+                                <p>No progress reports submitted yet.</p>
+                            </div>
+                        ) : (
+                            reports.map((report: any) => (
+                                <Card key={report._id} className="shadow-sm border border-border/50">
+                                    <CardContent className="p-4">
+                                        <div className="flex justify-between items-start mb-2">
+                                            <div>
+                                                <p className="font-bold text-sm text-foreground">{report.studentId?.name || 'Unknown Student'}</p>
+                                                <p className="text-[11px] text-muted-foreground">{format(new Date(report.date), 'EEEE, MMMM do')}</p>
+                                            </div>
+                                            <Badge variant="outline" className="text-[10px]">{report.subject}</Badge>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4 mt-3">
+                                            <div className="p-2 rounded-xl bg-muted/30">
+                                                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Topic Covered</p>
+                                                <p className="text-xs text-foreground line-clamp-2">{report.topicCovered}</p>
+                                            </div>
+                                            <div className="p-2 rounded-xl bg-muted/30">
+                                                <p className="text-[10px] font-bold text-muted-foreground uppercase mb-1">Homework</p>
+                                                <p className="text-xs text-foreground line-clamp-2">{report.homeworkGiven}</p>
+                                            </div>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ))
+                        )}
+                    </div>
+                </TabsContent>
+
+                <TabsContent value="performance" className="mt-6">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                         {[
-                            { label: 'Average class rate', value: completedClasses.length > 0 ? `₹${Math.round(classes.reduce((s, c) => s + c.amount, 0) / (classes.length || 1))}` : 'N/A' },
-                            { label: 'Avg. class duration', value: completedClasses.length > 0 ? `${Math.round(classes.reduce((s, c) => s + c.duration, 0) / (classes.length || 1))} min` : 'N/A' },
-                            { label: 'Active students', value: students.filter(s => s.status === 'active').length },
-                            { label: 'Completion rate', value: classes.length > 0 ? `${Math.round((completedClasses.length / classes.length) * 100)}%` : 'N/A' },
+                            { label: 'Avg Class Rate', value: completedClasses.length > 0 ? `₹${Math.round(classes.reduce((s, c) => s + (c.amount || 0), 0) / (classes.length || 1))}` : 'N/A', icon: DollarSign },
+                            { label: 'Avg Duration', value: completedClasses.length > 0 ? `${Math.round(classes.reduce((s, c) => s + (c.duration || 0), 0) / (classes.length || 1))} min` : 'N/A', icon: BookOpen },
+                            { label: 'Engagement', value: reports.length > 0 ? `${Math.round((reports.length / (classes.length || 1)) * 100)}%` : '0%', icon: TrendingUp },
+                            { label: 'Success Rate', value: classes.length > 0 ? `${Math.round((completedClasses.length / classes.length) * 100)}%` : '0%', icon: GraduationCap },
                         ].map((m) => (
-                            <Card key={m.label} className="shadow-sm border" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
-                                <CardContent className="p-4">
-                                    <p className="text-xs font-medium" style={{ color: 'var(--muted-foreground)' }}>{m.label}</p>
-                                    <p className="text-2xl font-bold mt-1 text-blue-600">{m.value}</p>
+                            <Card key={m.label} className="shadow-sm border hover:border-blue-200 transition-colors" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
+                                <CardContent className="p-5 flex flex-col items-center text-center">
+                                    <div className="w-10 h-10 rounded-full bg-blue-50 dark:bg-blue-900/10 flex items-center justify-center mb-3">
+                                        <m.icon className="w-5 h-5 text-blue-600" />
+                                    </div>
+                                    <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">{m.label}</p>
+                                    <p className="text-2xl font-black mt-1 text-foreground">{m.value}</p>
                                 </CardContent>
                             </Card>
                         ))}

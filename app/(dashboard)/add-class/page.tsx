@@ -10,8 +10,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useClasses, type ApiClass } from '@/lib/hooks/useClasses';
+import { useClasses, useClass, type ApiClass } from '@/lib/hooks/useClasses';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { useSearchParams, useRouter, usePathname } from 'next/navigation';
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -34,12 +35,19 @@ type ClassForm = z.infer<typeof classSchema>;
 
 export default function AddClassPage() {
     const { user } = useAuth();
+    const router = useRouter();
+    const pathname = usePathname();
+    const searchParams = useSearchParams();
+    const editId = searchParams.get('edit');
+
     const [success, setSuccess] = useState(false);
     const [editingClass, setEditingClass] = useState<ApiClass | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
-    const { data: studentsData } = useStudents();
-    const { data: classesData, isLoading: classesLoading } = useClasses();
+    const { data: studentsData } = useStudents({ teacherId: user?._id });
+    const { data: classesData, isLoading: classesLoading } = useClasses({ teacherId: user?._id });
+    const { data: classToEdit, isLoading: loadingToEdit } = useClass(editId || '');
+
     const createClass = useCreateClass();
     const deleteClass = useDeleteClass();
 
@@ -52,22 +60,32 @@ export default function AddClassPage() {
             date: new Date().toISOString().split('T')[0],
             time: '10:00',
             duration: '60',
-            status: 'completed', // default to completed
+            status: 'completed',
         },
     });
 
     const watchedStudentId = watch('studentId');
+    const watchedDuration = watch('duration');
 
-    // Auto-fill subject and amount from selected student
-    useEffect(() => {
-        if (!watchedStudentId) return;
-        const student = students.find(s => s._id === watchedStudentId);
-        if (!student) return;
-        if (student.subject) setValue('subject', student.subject);
-        if (student.feePerClass) setValue('amount', String(student.feePerClass));
-    }, [watchedStudentId, students, setValue]);
+    const editMutation = useUpdateClass(editId || '');
 
-    const editMutation = useUpdateClass(editingClass?._id ?? '');
+    const clearEdit = () => {
+        setEditingClass(null);
+        if (editId) {
+            router.push(pathname);
+        }
+        reset({
+            studentId: '',
+            subject: '',
+            topic: '',
+            date: new Date().toISOString().split('T')[0],
+            time: '10:00',
+            duration: '60',
+            amount: '',
+            notes: '',
+            status: 'completed',
+        });
+    };
 
     const onSubmit = async (data: ClassForm) => {
         const payload = {
@@ -84,27 +102,27 @@ export default function AddClassPage() {
 
         if (editingClass) {
             await editMutation.mutateAsync(payload);
-            setEditingClass(null);
+            clearEdit();
         } else {
             await createClass.mutateAsync(payload);
             setSuccess(true);
+            reset({
+                date: new Date().toISOString().split('T')[0],
+                time: '10:00',
+                duration: '60',
+                status: 'completed',
+            });
         }
-        reset({
-            date: new Date().toISOString().split('T')[0],
-            time: '10:00',
-            duration: '60',
-            status: 'completed',
-        });
     };
 
-    const openEdit = (c: ApiClass) => {
+    const populateForm = (c: ApiClass) => {
         setEditingClass(c);
         const studentId = c.studentId && typeof c.studentId === 'object' ? c.studentId._id : c.studentId;
         reset({
             studentId,
             subject: c.subject,
             topic: c.topic,
-            date: c.date.split('T')[0],
+            date: typeof c.date === 'string' ? c.date.split('T')[0] : format(new Date(c.date), 'yyyy-MM-dd'),
             time: c.time,
             duration: String(c.duration),
             amount: String(c.amount),
@@ -112,6 +130,43 @@ export default function AddClassPage() {
             status: c.status,
         });
     };
+
+    // Sync state with URL editId
+    useEffect(() => {
+        if (editId) {
+            // Populate the form only when data is loaded and matches the URL ID
+            if (classToEdit && !loadingToEdit && classToEdit._id === editId) {
+                // Avoid re-populating if we already have this class in state
+                if (editingClass?._id !== editId) {
+                    populateForm(classToEdit);
+                }
+            }
+        } else {
+            // If we were editing but the URL ID is gone, clear the state
+            if (editingClass) {
+                clearEdit();
+            }
+        }
+    }, [editId, classToEdit, loadingToEdit, editingClass]);
+
+    // Auto-fill subject and calculate amount ONLY when creating a new class
+    useEffect(() => {
+        // Skip auto-fill if we are in Edit mode to prevent overwriting saved data
+        if (editId) return;
+        if (!watchedStudentId) return;
+
+        const student = students.find(s => s._id === watchedStudentId);
+        if (!student) return;
+
+        if (student.subject) setValue('subject', student.subject);
+
+        if (student.feePerClass) {
+            const durationNum = parseInt(watchedDuration) || 60;
+            const ratePerMin = student.feePerClass / 60;
+            const calculatedAmount = Math.round(ratePerMin * durationNum);
+            setValue('amount', String(calculatedAmount));
+        }
+    }, [watchedStudentId, watchedDuration, students, setValue, editId]);
 
     const statusColor: Record<string, string> = {
         completed: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
@@ -238,12 +293,9 @@ export default function AddClassPage() {
                         </div>
                         <div className="flex justify-end gap-3 pt-2">
                             {editingClass && (
-                                <Button type="button" variant="outline" onClick={() => {
-                                    setEditingClass(null);
-                                    reset({ date: new Date().toISOString().split('T')[0], time: '10:00', duration: '60', status: 'completed' });
-                                }}>Cancel Edit</Button>
+                                <Button type="button" variant="outline" onClick={clearEdit}>Cancel Edit</Button>
                             )}
-                            <Button type="button" variant="outline" onClick={() => reset({ date: new Date().toISOString().split('T')[0], time: '10:00', duration: '60', status: 'completed' })}>Reset</Button>
+                            <Button type="button" variant="outline" onClick={clearEdit}>Reset</Button>
                             <Button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white gap-2" disabled={createClass.isPending || editMutation.isPending}>
                                 {(createClass.isPending || editMutation.isPending) && <Loader2 className="w-4 h-4 animate-spin" />}
                                 {editingClass ? 'Update Class' : 'Save Class'}
@@ -280,7 +332,7 @@ export default function AddClassPage() {
                                             </p>
                                         </div>
                                         <div className="flex gap-1 flex-shrink-0">
-                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => openEdit(c)}>
+                                            <Button variant="ghost" size="sm" className="h-8 w-8 p-0" onClick={() => router.push(`${pathname}?edit=${c._id}`)}>
                                                 <Pencil className="w-3.5 h-3.5" />
                                             </Button>
                                             <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20" onClick={() => setDeleteConfirm(c._id)}>

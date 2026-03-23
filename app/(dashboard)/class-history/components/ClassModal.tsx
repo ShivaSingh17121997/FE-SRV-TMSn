@@ -3,6 +3,7 @@ import { type ApiClass } from "@/lib/hooks/useClasses";
 import { format } from "date-fns";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 interface ClassModalProps {
     isOpen: boolean;
@@ -11,6 +12,7 @@ interface ClassModalProps {
 }
 
 export default function ClassModal({ isOpen, onClose, classData }: ClassModalProps) {
+    const router = useRouter();
     if (!classData) return null;
 
     const getStudentName = (c: ApiClass) =>
@@ -24,6 +26,11 @@ export default function ClassModal({ isOpen, onClose, classData }: ClassModalPro
             cancelled: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
         };
         return map[status] ?? 'bg-gray-100 text-gray-700';
+    };
+
+    const handleEdit = () => {
+        onClose();
+        router.push(`/add-class?edit=${classData._id}`);
     };
 
     return (
@@ -93,7 +100,7 @@ export default function ClassModal({ isOpen, onClose, classData }: ClassModalPro
 
                 <div className="flex justify-end gap-2 pt-4 border-t border-border mt-4">
                     <Button variant="outline" onClick={onClose}>Close</Button>
-                    <Button variant="secondary">Edit Session</Button>
+                    <Button variant="secondary" onClick={handleEdit}>Edit Session</Button>
                 </div>
             </DialogContent>
         </Dialog>

@@ -17,7 +17,7 @@ export default function AdminClassesPage() {
     const { data: teachers } = useTeachers();
 
     const classes = allClasses?.classes ?? [];
-    const totalAmount = classes.reduce((s, c) => s + c.amount, 0);
+    const totalAmount = classes.filter(c => c.status === 'completed').reduce((s, c) => s + (c.amount || 0), 0);
 
     const getTeacherName = (c: ApiClass) => {
         if (!c.teacherId) return 'N/A';
@@ -91,7 +91,7 @@ export default function AdminClassesPage() {
                                         <td className="px-4 py-3" style={{ color: 'var(--foreground)' }}>{c.topic}</td>
                                         <td className="px-4 py-3" style={{ color: 'var(--muted-foreground)' }}>{format(new Date(c.date), 'dd MMM yyyy')}</td>
                                         <td className="px-4 py-3" style={{ color: 'var(--muted-foreground)' }}>{c.duration}m</td>
-                                        <td className="px-4 py-3 font-semibold text-emerald-600">₹{c.amount}</td>
+                                        <td className={`px-4 py-3 font-semibold ${c.status === 'completed' ? 'text-emerald-600 dark:text-emerald-500' : 'text-emerald-600/40 dark:text-emerald-500/40'}`}>₹{c.amount}</td>
                                         <td className="px-4 py-3"><Badge className={`text-xs border-0 ${statusBadge(c.status)}`}>{c.status}</Badge></td>
                                     </tr>
                                 ))}
