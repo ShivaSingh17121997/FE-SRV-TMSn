@@ -17,18 +17,20 @@ interface ClassTableProps {
     setItemsPerPage: (val: number) => void;
     currentPage: number;
     setCurrentPage: (val: number) => void;
+    isServerSide?: boolean;
 }
 
 export default function ClassTable({
     data,
     onRowClick,
     itemsPerPage, setItemsPerPage,
-    currentPage, setCurrentPage
+    currentPage, setCurrentPage,
+    isServerSide = false
 }: ClassTableProps) {
     const { mutate: endClass } = useEndClass();
 
     const totalPages = Math.ceil(data.length / itemsPerPage) || 1;
-    const paginatedData = data.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
+    const paginatedData = isServerSide ? data : data.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage);
 
     const getStudentName = (c: ApiClass) =>
         c.studentId && typeof c.studentId === 'object' ? c.studentId.name : 'N/A';
@@ -48,15 +50,15 @@ export default function ClassTable({
             // Extract the date part in local timezone to match UI display
             const d = new Date(dateStr);
             const datePart = format(d, 'yyyy-MM-dd');
-            
+
             // Construct a local date time: "2026-03-23T10:00"
             const classStartTime = new Date(`${datePart}T${timeStr}`);
-            
+
             if (isNaN(classStartTime.getTime())) return false;
 
             // Define end time as start time + duration
             const classEndTime = new Date(classStartTime.getTime() + duration * 60000);
-            
+
             return new Date() > classEndTime;
         } catch (e) {
             return false;
@@ -140,8 +142,8 @@ export default function ClassTable({
                 </table>
             </div>
 
-            {/* Pagination Controls */}
-            {data.length > 0 && (
+            {/* Pagination Controls - Only show if NOT server side (since ClassHistoryPage handles it itself now) */}
+            {!isServerSide && data.length > 0 && (
                 <div className="flex items-center justify-between px-4 py-3 border-t border-border bg-muted/30">
                     <div className="flex items-center gap-2">
                         <span className="text-xs text-muted-foreground">Rows per page:</span>

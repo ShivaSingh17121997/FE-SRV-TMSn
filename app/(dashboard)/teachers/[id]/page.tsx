@@ -47,7 +47,7 @@ export default function TeacherDetailsPage() {
     const totalEarned = classes
         .filter(c => c.status === 'completed')
         .reduce((s, c) => s + (c.amount || 0), 0);
-        
+
     const completedClasses = classes.filter(c => c.status === 'completed');
 
     const stats = [
@@ -82,7 +82,7 @@ export default function TeacherDetailsPage() {
                     </div>
                 </div>
                 {teacher.googleMeetLink && (
-                    <Button 
+                    <Button
                         className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg shadow-emerald-500/20 rounded-xl px-6 h-10 transition-all"
                         onClick={() => window.open(teacher.googleMeetLink?.startsWith('http') ? teacher.googleMeetLink : `https://${teacher.googleMeetLink}`, '_blank')}
                     >

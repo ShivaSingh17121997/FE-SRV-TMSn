@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { useStudents, useCreateStudent, useUpdateStudent, useDeleteStudent, useCheckStudentEmail, type ApiStudent } from '@/lib/hooks/useStudents';
+import { useStudents, useCreateStudent, useUpdateStudent, useDeleteStudent, useCheckStudentEmail, useChangeStudentPassword, type ApiStudent } from '@/lib/hooks/useStudents';
 import { useTeachers } from '@/lib/hooks/useTeachers';
 import { useClasses } from '@/lib/hooks/useClasses';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -19,7 +19,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { useForm, Controller } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
-import { Plus, Search, Pencil, Trash2, Users, Loader2, AlertCircle, CheckCircle2, Info, MoreVertical, Calendar, Clock, Video } from 'lucide-react';
+import { Plus, Search, Pencil, Trash2, Users, Loader2, AlertCircle, CheckCircle2, Info, MoreVertical, Calendar, Clock, Video, Shield, Key } from 'lucide-react';
 import Link from 'next/link';
 import { format } from 'date-fns';
 
@@ -49,6 +49,7 @@ export default function StudentsPage() {
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingId, setEditingId] = useState<string | null>(null);
     const [assigningStudent, setAssigningStudent] = useState<ApiStudent | null>(null);
+    const [changePasswordStudent, setChangePasswordStudent] = useState<ApiStudent | null>(null);
     const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
     // Email check state
@@ -357,6 +358,9 @@ export default function StudentsPage() {
                                                         <DropdownMenuItem onClick={() => openEdit(s)} className="gap-2 cursor-pointer">
                                                             <Pencil className="w-4 h-4 text-emerald-600" /> Edit Student
                                                         </DropdownMenuItem>
+                                                        <DropdownMenuItem onClick={() => setChangePasswordStudent(s)} className="gap-2 cursor-pointer">
+                                                            <Key className="w-4 h-4 text-purple-600" /> Change Password
+                                                        </DropdownMenuItem>
                                                         <DropdownMenuItem 
                                                             onClick={() => setDeleteConfirm(s._id)} 
                                                             className="gap-2 text-red-600 focus:text-red-600 focus:bg-red-50 cursor-pointer"
@@ -515,16 +519,17 @@ export default function StudentsPage() {
                                 </div>
                             )}
 
-                            {/* Password field — hidden when account already exists */}
-                            {!editingId && emailExists?.exists !== true && (
+                            {/* Password field — shown for new students OR when admin/teacher edits */}
+                            {(!editingId || (user?.role === 'super_admin' || user?.role === 'admin' || user?.role === 'teacher')) && emailExists?.exists !== true && (
                                 <div className="col-span-2 space-y-1">
-                                    <Label>Password</Label>
+                                    <Label>{editingId ? 'New Password' : 'Password'}</Label>
                                     <Input
                                         type="password"
-                                        placeholder="student123 (Default)"
+                                        placeholder={editingId ? 'Leave blank to keep current' : 'student123 (Default)'}
                                         {...register('password')}
                                     />
                                     {errors.password && <p className="text-xs text-red-500">{errors.password.message}</p>}
+                                    {editingId && <p className="text-[10px] text-muted-foreground">Updating the password here will change the portal login for this student's email.</p>}
                                 </div>
                             )}
 
@@ -569,7 +574,68 @@ export default function StudentsPage() {
                 teachers={teachers}
                 onClose={() => setAssigningStudent(null)}
             />
+
+            {/* Dedicated Change Password Dialog */}
+            <ChangePasswordDialog
+                student={changePasswordStudent}
+                onClose={() => setChangePasswordStudent(null)}
+            />
         </div>
+    );
+}
+
+function ChangePasswordDialog({ student, onClose }: { student: ApiStudent | null; onClose: () => void }) {
+    const changePassword = useChangeStudentPassword();
+    const { register, handleSubmit, reset, formState: { errors } } = useForm({
+        defaultValues: { password: '' }
+    });
+
+    useEffect(() => {
+        if (student) reset({ password: '' });
+    }, [student, reset]);
+
+    const onSubmit = async (data: any) => {
+        if (!student || !student.email) return;
+        await changePassword.mutateAsync({ email: student.email, password: data.password });
+        onClose();
+    };
+
+    return (
+        <Dialog open={!!student} onOpenChange={(open) => !open && onClose()}>
+            <DialogContent className="max-w-sm">
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <Shield className="w-5 h-5 text-purple-600" />
+                        Change Student Password
+                    </DialogTitle>
+                    <p className="text-xs text-muted-foreground mt-1">
+                        Setting a new password for <strong>{student?.name}</strong> ({student?.email})
+                    </p>
+                </DialogHeader>
+                <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-2">
+                    <div className="space-y-1">
+                        <Label>New Password *</Label>
+                        <Input 
+                            type="password" 
+                            placeholder="Enter new password" 
+                            {...register('password', { required: 'Required', minLength: { value: 6, message: 'Min 6 characters' } })} 
+                        />
+                        {errors.password && <p className="text-xs text-red-500">{(errors.password as any).message}</p>}
+                    </div>
+                    <div className="flex justify-end gap-3 pt-2">
+                        <Button variant="outline" type="button" onClick={onClose}>Cancel</Button>
+                        <Button
+                            type="submit"
+                            className="bg-purple-600 hover:bg-purple-700 text-white"
+                            disabled={changePassword.isPending}
+                        >
+                            {changePassword.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                            Update Password
+                        </Button>
+                    </div>
+                </form>
+            </DialogContent>
+        </Dialog>
     );
 }
 

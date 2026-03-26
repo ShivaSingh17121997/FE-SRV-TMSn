@@ -109,3 +109,23 @@ export function useDeleteClass() {
         onError: (err: Error) => toast.error(err.message || 'Failed to delete class'),
     });
 }
+
+export function useBulkCreateClasses() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: (body: {
+            studentId: string;
+            subject: string;
+            topic: string;
+            classes: { date: string; time: string }[];
+            duration: number;
+            amount?: number;
+            notes?: string;
+        }) => apiPost<{ success: boolean; data: { classes: ApiClass[] } }>('/classes/bulk', body),
+        onSuccess: (data) => {
+            qc.invalidateQueries({ queryKey: classKeys.all });
+            toast.success(`${data.data.classes.length} classes scheduled successfully`);
+        },
+        onError: (err: Error) => toast.error(err.message || 'Failed to schedule bulk classes'),
+    });
+}

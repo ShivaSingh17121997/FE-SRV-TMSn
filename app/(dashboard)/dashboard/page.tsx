@@ -18,14 +18,19 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { apiPost } from '@/lib/api';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import { Pagination } from '@/components/dashboard/Pagination';
 
 export default function DashboardPage() {
     const { user } = useAuth();
     const isAdmin = user?.role === 'admin' || user?.role === 'super_admin';
-    
+
     // Hooks
+    const [teacherPage, setTeacherPage] = useState(1);
     const { data: teacherProfile } = useTeacher(user?._id ?? user?.id ?? '');
-    const { data: allTeachersData, isLoading: loadingTeachers } = useTeachers({ limit: 100 });
+    const { data: allTeachersData, isLoading: loadingTeachers } = useTeachers({
+        limit: 5,
+        page: teacherPage
+    });
     const { data: studentsData, isLoading: loadingStudents } = useStudents({ limit: '1000' });
     const { data: classesData, isLoading: loadingClasses } = useClasses({ limit: 1000 });
     const { data: paymentsData, isLoading: loadingPayments } = usePayments();
@@ -84,12 +89,12 @@ export default function DashboardPage() {
     const allTeachers = allTeachersData?.teachers ?? [];
     const allStudents = studentsData?.students ?? [];
     const allSessions = classesData?.classes ?? [];
-    
+
     // Filter for current view
-    const myStudents = isAdmin ? allStudents : allStudents.filter(s => 
+    const myStudents = isAdmin ? allStudents : allStudents.filter(s =>
         typeof s.teacherId === 'object' ? s.teacherId._id === user?._id : s.teacherId === user?._id
     );
-    const mySessions = isAdmin ? allSessions : allSessions.filter(c => 
+    const mySessions = isAdmin ? allSessions : allSessions.filter(c =>
         typeof c.teacherId === 'object' ? c.teacherId._id === user?._id : c.teacherId === user?._id
     );
 
@@ -102,12 +107,14 @@ export default function DashboardPage() {
         .filter((c) => c.status === 'completed')
         .reduce((sum, c) => sum + (c.amount || 0), 0);
 
-    const upcomingClasses = mySessions.filter((c) => c.status === 'scheduled' || c.status === 'ongoing');
+    const upcomingClasses = mySessions
+        .filter((c) => c.status === 'scheduled' || c.status === 'ongoing')
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
     const stats = [
         {
             title: isAdmin ? 'Total Teachers' : 'Total Students',
-            value: isAdmin ? allTeachers.length : myStudents.length,
+            value: isAdmin ? (allTeachersData?.pagination?.total ?? 0) : (studentsData?.pagination?.total ?? 0),
             icon: isAdmin ? ExternalLink : Users,
             color: 'blue',
             trend: isAdmin ? 'Staff members' : 'Active enrollment',
@@ -119,7 +126,7 @@ export default function DashboardPage() {
             value: classesThisMonth.length,
             icon: BookOpen,
             color: 'indigo',
-            trend: `${mySessions.filter(c => c.status === 'completed').length} completed total`,
+            trend: `${classesData?.pagination?.total ?? 0} completed total`,
             borderColor: 'border-indigo-500',
             iconColor: 'text-indigo-600 dark:text-indigo-400',
         },
@@ -156,16 +163,16 @@ export default function DashboardPage() {
 
     // Calculate teacher specific stats for Admin table
     const teachersList = allTeachers.map(t => {
-        const teacherStudents = allStudents.filter(s => 
+        const teacherStudents = allStudents.filter(s =>
             typeof s.teacherId === 'object' ? s.teacherId._id === t._id : s.teacherId === t._id
         );
-        const teacherClasses = allSessions.filter(c => 
+        const teacherClasses = allSessions.filter(c =>
             typeof c.teacherId === 'object' ? c.teacherId._id === t._id : c.teacherId === t._id
         );
         const teacherEarned = teacherClasses
             .filter(c => c.status === 'completed')
             .reduce((sum, c) => sum + (c.amount || 0), 0);
-            
+
         return {
             ...t,
             studentCount: teacherStudents.length,
@@ -305,6 +312,15 @@ export default function DashboardPage() {
                             </Table>
                         </div>
                     </CardContent>
+                    {allTeachersData?.pagination && (
+                        <div className="border-t border-border">
+                            <Pagination
+                                currentPage={allTeachersData.pagination.page}
+                                totalPages={allTeachersData.pagination.totalPages}
+                                onPageChange={setTeacherPage}
+                            />
+                        </div>
+                    )}
                 </Card>
             ) : (
                 /* Regular Teacher Dashboard Detail */
@@ -369,11 +385,11 @@ export default function DashboardPage() {
                                                     <p className="text-sm font-semibold truncate text-foreground">{c.topic}</p>
                                                     <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                         {isAdmin && (
-                                                             <Link href={`/classes/${c._id}`}>
-                                                                 <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
-                                                                     <ArrowUpRight className="w-3.5 h-3.5" />
-                                                                 </Button>
-                                                             </Link>
+                                                            <Link href={`/classes/${c._id}`}>
+                                                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0">
+                                                                    <ArrowUpRight className="w-3.5 h-3.5" />
+                                                                </Button>
+                                                            </Link>
                                                         )}
                                                         {user?.role === 'teacher' && currentGoogleMeetLink && c.status !== 'ongoing' && (
                                                             <button

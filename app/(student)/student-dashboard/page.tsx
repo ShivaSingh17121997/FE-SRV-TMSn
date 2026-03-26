@@ -12,8 +12,13 @@ import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import type { ApiClass } from '@/lib/hooks/useClasses';
 import { apiPost } from '@/lib/api';
-import { useState } from 'react';
 import { toast } from 'sonner';
+import { useState } from 'react';
+import { useChangeStudentPassword } from '@/lib/hooks/useStudents';
+import { useForm } from 'react-hook-form';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 
 export default function StudentDashboardPage() {
     const { user } = useAuth();
@@ -23,6 +28,8 @@ export default function StudentDashboardPage() {
     const { data: paymentsData, isLoading: loadingPayments } = usePayments();
     const { data: reportsData } = useReports();
     const [joiningId, setJoiningId] = useState<string | null>(null);
+    const [isPasswordModalOpen, setIsPasswordModalOpen] = useState(false);
+    const changePassword = useChangeStudentPassword();
 
     const isLoading = loadingClasses || loadingPayments;
 
@@ -43,7 +50,9 @@ export default function StudentDashboardPage() {
     const myPayments = paymentsData?.payments ?? [];
     const myReports = reportsData?.reports ?? [];
 
-    const upcomingClasses = mySessions.filter((c) => c.status === 'scheduled' || c.status === 'rescheduled');
+    const upcomingClasses = mySessions
+        .filter((c) => c.status === 'scheduled' || c.status === 'rescheduled')
+        .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
     const completedClasses = mySessions.filter((c) => c.status === 'completed');
 
     // Calculate total dues or paid
@@ -111,16 +120,26 @@ export default function StudentDashboardPage() {
                         {format(now, 'EEEE, MMMM d, yyyy')} · Here is your learning overview
                     </p>
                 </div>
-                {upcomingClasses.length > 0 && upcomingClasses[0].teacherId && typeof upcomingClasses[0].teacherId === 'object' && upcomingClasses[0].teacherId.googleMeetLink && (
-                    <Button
-                        disabled={joiningId === upcomingClasses[0]._id}
-                        onClick={() => handleJoinClass(upcomingClasses[0]._id, (upcomingClasses[0].teacherId as any).googleMeetLink)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg shadow-emerald-500/20 rounded-xl px-6 h-10 inline-flex items-center justify-center font-medium text-sm transition-all"
-                    >
-                        {joiningId === upcomingClasses[0]._id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
-                        Join Your Meet
-                    </Button>
-                )}
+                    <div className="flex items-center gap-2">
+                        <Button 
+                            variant="outline" 
+                            size="sm" 
+                            onClick={() => setIsPasswordModalOpen(true)}
+                            className="bg-card hover:bg-muted font-medium text-xs px-4 h-10 rounded-xl"
+                        >
+                            Change Password
+                        </Button>
+                        {upcomingClasses.length > 0 && upcomingClasses[0].teacherId && typeof upcomingClasses[0].teacherId === 'object' && upcomingClasses[0].teacherId.googleMeetLink && (
+                            <Button
+                                disabled={joiningId === upcomingClasses[0]._id}
+                                onClick={() => handleJoinClass(upcomingClasses[0]._id, (upcomingClasses[0].teacherId as any).googleMeetLink)}
+                                className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg shadow-emerald-500/20 rounded-xl px-6 h-10 inline-flex items-center justify-center font-medium text-sm transition-all"
+                            >
+                                {joiningId === upcomingClasses[0]._id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
+                                Join Your Meet
+                            </Button>
+                        )}
+                    </div>
             </div>
 
             {/* Stats grid */}
@@ -271,6 +290,65 @@ export default function StudentDashboardPage() {
                     </CardContent>
                 </Card>
             </div>
+
+            {/* Change Password Modal */}
+            <Dialog open={isPasswordModalOpen} onOpenChange={setIsPasswordModalOpen}>
+                <DialogContent className="max-w-sm">
+                    <DialogHeader>
+                        <DialogTitle>Change Your Password</DialogTitle>
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Set a new password for your portal access.
+                        </p>
+                    </DialogHeader>
+                    <ChangePasswordForm 
+                        email={user?.email || ''} 
+                        onSuccess={() => setIsPasswordModalOpen(false)} 
+                    />
+                </DialogContent>
+            </Dialog>
         </div>
+    );
+}
+
+function ChangePasswordForm({ email, onSuccess }: { email: string; onSuccess: () => void }) {
+    const changePassword = useChangeStudentPassword();
+    const { register, handleSubmit, formState: { errors } } = useForm({
+        defaultValues: { password: '' }
+    });
+
+    const onSubmit = async (data: any) => {
+        if (!email) return;
+        try {
+            await changePassword.mutateAsync({ email, password: data.password });
+            toast.success('Password updated successfully');
+            onSuccess();
+        } catch (error: any) {
+            toast.error(error.message || 'Failed to update password');
+        }
+    };
+
+    return (
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 py-2">
+            <div className="space-y-1">
+                <Label>New Password *</Label>
+                <Input 
+                    type="password" 
+                    placeholder="Min 6 characters" 
+                    {...register('password', { required: 'Required', minLength: { value: 6, message: 'Min 6 characters' } })} 
+                />
+                {errors.password && <p className="text-xs text-red-500">{(errors.password as any).message}</p>}
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+                <Button variant="outline" type="button" onClick={onSuccess}>Cancel</Button>
+                <Button
+                    type="submit"
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white"
+                    disabled={changePassword.isPending}
+                >
+                    {changePassword.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                    Update Password
+                </Button>
+            </div>
+        </form>
     );
 }

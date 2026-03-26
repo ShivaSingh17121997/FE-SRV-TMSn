@@ -110,3 +110,11 @@ export function useCheckStudentEmail() {
         mutationFn: (email: string) => apiPost<CheckEmailResponse>('/students/check-email', { email }),
     });
 }
+
+export function useChangeStudentPassword() {
+    return useMutation({
+        mutationFn: (data: { email: string; password: string }) => apiPost<{ success: boolean }>('/students/change-password', data),
+        onSuccess: () => toast.success('Password changed successfully'),
+        onError: (err: Error) => toast.error(err.message || 'Failed to change password'),
+    });
+}

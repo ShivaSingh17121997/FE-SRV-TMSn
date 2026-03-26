@@ -4,8 +4,9 @@ import { useState, useMemo } from 'react';
 import { useClasses, type ApiClass } from '@/lib/hooks/useClasses';
 import { useAuth } from '@/contexts/AuthContext';
 import { Loader2, AlertCircle, LayoutList, Calendar as CalendarIcon } from 'lucide-react';
-import { isToday, isThisWeek, isThisMonth } from 'date-fns';
+import { isToday, isThisWeek, isThisMonth, startOfDay, startOfWeek, startOfMonth, endOfToday } from 'date-fns';
 import { Button } from '@/components/ui/button';
+import { useEffect } from 'react';
 
 import StatsCards from './components/StatsCards';
 import Filters from './components/Filters';
@@ -13,11 +14,12 @@ import ExportButtons from './components/ExportButtons';
 import ClassTable from './components/ClassTable';
 import ClassModal from './components/ClassModal';
 import CalendarView from './components/CalendarView';
+import { Pagination } from '@/components/dashboard/Pagination';
 
 export default function ClassHistoryPage() {
     const { user } = useAuth();
-    const { data, isLoading, isError, error } = useClasses({ teacherId: user?._id });
-    const classes = data?.classes ?? [];
+    // View State
+    const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
 
     // Filter States
     const [search, setSearch] = useState('');
@@ -25,15 +27,50 @@ export default function ClassHistoryPage() {
     const [subjectFilter, setSubjectFilter] = useState('all');
     const [quickDateFilter, setQuickDateFilter] = useState('all');
 
-    // View State
-    const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
-
     // Pagination State
     const [itemsPerPage, setItemsPerPage] = useState(10);
     const [currentPage, setCurrentPage] = useState(1);
 
+    // Calendar State
+    const [calendarDate, setCalendarDate] = useState(new Date());
+    const [calendarRange, setCalendarRange] = useState<{ start: Date; end: Date } | null>(null);
+
     // Modal State
     const [selectedClass, setSelectedClass] = useState<ApiClass | null>(null);
+
+    // Reset page to 1 when filters change
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [search, statusFilter, subjectFilter, quickDateFilter]);
+
+    // Calculate quick date range for backend
+    const dateRange = useMemo(() => {
+        if (quickDateFilter === 'all') return {};
+        const now = new Date();
+        let start = now;
+        if (quickDateFilter === 'today') start = startOfDay(now);
+        else if (quickDateFilter === 'this_week') start = startOfWeek(now, { weekStartsOn: 1 });
+        else if (quickDateFilter === 'this_month') start = startOfMonth(now);
+        
+        return {
+            startDate: start.toISOString(),
+            endDate: endOfToday().toISOString()
+        };
+    }, [quickDateFilter]);
+
+    const { data, isLoading, isError, error } = useClasses({ 
+        teacherId: user?._id,
+        page: String(currentPage),
+        limit: String(viewMode === 'calendar' ? 100 : itemsPerPage),
+        status: statusFilter === 'all' ? undefined : statusFilter,
+        subject: subjectFilter === 'all' ? undefined : subjectFilter,
+        search: search || undefined,
+        ...(viewMode === 'calendar' && calendarRange ? {
+            startDate: calendarRange.start.toISOString(),
+            endDate: calendarRange.end.toISOString()
+        } : dateRange)
+    });
+    const classes = data?.classes ?? [];
 
     // Derived Data
     const uniqueSubjects = useMemo(() => {
@@ -41,33 +78,9 @@ export default function ClassHistoryPage() {
         return Array.from(subs).sort();
     }, [classes]);
 
-    const filteredClasses = useMemo(() => {
-        return classes.filter(c => {
-            // Search
-            const student = c.studentId && typeof c.studentId === 'object' ? c.studentId : null;
-            const studentName = student?.name ?? '';
-            const searchLower = search.toLowerCase();
-            const matchSearch = c.topic.toLowerCase().includes(searchLower) ||
-                studentName.toLowerCase().includes(searchLower) ||
-                c.subject.toLowerCase().includes(searchLower) ||
-                c.date.includes(searchLower);
-
-            // Filters
-            const matchStatus = statusFilter === 'all' || c.status === statusFilter;
-            const matchSubject = subjectFilter === 'all' || c.subject === subjectFilter;
-
-            // Date filtering
-            let matchDate = true;
-            if (quickDateFilter !== 'all') {
-                const classDate = new Date(c.date);
-                if (quickDateFilter === 'today') matchDate = isToday(classDate);
-                else if (quickDateFilter === 'this_week') matchDate = isThisWeek(classDate);
-                else if (quickDateFilter === 'this_month') matchDate = isThisMonth(classDate);
-            }
-
-            return matchSearch && matchStatus && matchSubject && matchDate;
-        });
-    }, [classes, search, statusFilter, subjectFilter, quickDateFilter]);
+    // We still use search local filter if backend isn't perfect, 
+    // but better to rely on backend as much as possible.
+    const filteredClasses = classes; 
 
     // Calculate Statistics
     const stats = useMemo(() => {
@@ -147,18 +160,31 @@ export default function ClassHistoryPage() {
             {/* Main Content Area */}
             <div className="bg-card border border-border rounded-xl shadow-sm min-h-[500px]">
                 {viewMode === 'table' ? (
-                    <ClassTable
-                        data={filteredClasses}
-                        onRowClick={(c) => setSelectedClass(c)}
-                        itemsPerPage={itemsPerPage}
-                        setItemsPerPage={setItemsPerPage}
-                        currentPage={currentPage}
-                        setCurrentPage={setCurrentPage}
-                    />
+                    <div className="flex flex-col h-full">
+                        <ClassTable
+                            data={filteredClasses}
+                            onRowClick={(c) => setSelectedClass(c)}
+                            itemsPerPage={itemsPerPage}
+                            setItemsPerPage={setItemsPerPage}
+                            currentPage={currentPage}
+                            setCurrentPage={setCurrentPage}
+                            isServerSide={true}
+                        />
+                        {data?.pagination && (
+                            <Pagination 
+                                currentPage={data.pagination.page} 
+                                totalPages={data.pagination.totalPages} 
+                                onPageChange={setCurrentPage} 
+                            />
+                        )}
+                    </div>
                 ) : (
                     <CalendarView
                         data={filteredClasses}
                         onEventClick={(c) => setSelectedClass(c)}
+                        currentDate={calendarDate}
+                        onNavigate={setCalendarDate}
+                        onRangeChange={setCalendarRange}
                     />
                 )}
             </div>

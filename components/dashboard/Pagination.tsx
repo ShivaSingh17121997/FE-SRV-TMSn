@@ -1,7 +1,14 @@
 'use client';
 
-import { Button } from '@/components/ui/button';
-import { ChevronLeft, ChevronRight, MoreHorizontal } from 'lucide-react';
+import { 
+  Pagination as UiPagination, 
+  PaginationContent, 
+  PaginationEllipsis, 
+  PaginationItem, 
+  PaginationLink, 
+  PaginationNext, 
+  PaginationPrevious 
+} from '@/components/ui/pagination';
 
 interface PaginationProps {
     currentPage: number;
@@ -36,52 +43,46 @@ export function Pagination({ currentPage, totalPages, onPageChange }: Pagination
     };
 
     return (
-        <div className="flex items-center justify-between px-4 py-4 border-t border-border bg-card/50">
-            <div className="text-xs text-muted-foreground">
-                Page <span className="font-medium text-foreground">{currentPage}</span> of{' '}
-                <span className="font-medium text-foreground">{totalPages}</span>
+        <div className="flex flex-col sm:flex-row items-center justify-between px-6 py-4 border-t border-border bg-card/10 gap-4">
+            <div className="text-[10px] uppercase font-bold tracking-widest text-muted-foreground whitespace-nowrap">
+                Showing Page <span className="text-foreground">{currentPage}</span> of <span className="text-foreground">{totalPages}</span>
             </div>
-            <div className="flex items-center gap-1">
-                <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => onPageChange(currentPage - 1)}
-                    disabled={currentPage === 1}
-                >
-                    <ChevronLeft className="h-4 w-4" />
-                </Button>
+            
+            <UiPagination className="mx-0 w-auto">
+                <PaginationContent>
+                    <PaginationItem>
+                        <PaginationPrevious 
+                            onClick={() => onPageChange(currentPage - 1)} 
+                            disabled={currentPage === 1}
+                            className="cursor-pointer"
+                        />
+                    </PaginationItem>
 
-                <div className="flex items-center gap-1 mx-1">
                     {getPageNumbers().map((page, i) => (
-                        page === 'ellipsis' ? (
-                            <div key={`ellipsis-${i}`} className="h-8 w-8 flex items-center justify-center">
-                                <MoreHorizontal className="h-4 w-4 text-muted-foreground" />
-                            </div>
-                        ) : (
-                            <Button
-                                key={`page-${page}`}
-                                variant={currentPage === page ? 'default' : 'ghost'}
-                                size="sm"
-                                className={`h-8 w-8 text-xs ${currentPage === page ? 'bg-primary text-primary-foreground hover:bg-primary/90' : ''}`}
-                                onClick={() => onPageChange(page as number)}
-                            >
-                                {page}
-                            </Button>
-                        )
+                        <PaginationItem key={i}>
+                            {page === 'ellipsis' ? (
+                                <PaginationEllipsis />
+                            ) : (
+                                <PaginationLink 
+                                    isActive={currentPage === page}
+                                    onClick={() => onPageChange(page as number)}
+                                    className="cursor-pointer"
+                                >
+                                    {page}
+                                </PaginationLink>
+                            )}
+                        </PaginationItem>
                     ))}
-                </div>
 
-                <Button
-                    variant="outline"
-                    size="icon"
-                    className="h-8 w-8"
-                    onClick={() => onPageChange(currentPage + 1)}
-                    disabled={currentPage === totalPages}
-                >
-                    <ChevronRight className="h-4 w-4" />
-                </Button>
-            </div>
+                    <PaginationItem>
+                        <PaginationNext 
+                            onClick={() => onPageChange(currentPage + 1)} 
+                            disabled={currentPage === totalPages}
+                            className="cursor-pointer"
+                        />
+                    </PaginationItem>
+                </PaginationContent>
+            </UiPagination>
         </div>
     );
 }

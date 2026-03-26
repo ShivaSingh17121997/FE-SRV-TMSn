@@ -10,17 +10,23 @@ import { format } from 'date-fns';
 import { Input } from '@/components/ui/input';
 import { apiPost } from '@/lib/api';
 import { toast } from 'sonner';
+import { cn } from '@/lib/utils';
+import { Pagination } from '@/components/dashboard/Pagination';
 
 export default function StudentSchedulePage() {
-    const { data, isLoading } = useClasses();
+    const [page, setPage] = useState(1);
+    const limit = 10;
     const [searchQuery, setSearchQuery] = useState('');
+    const { data, isLoading } = useClasses({
+        page: String(page),
+        limit: String(limit),
+        search: searchQuery || undefined,
+        sortBy: 'date',
+        sortOrder: 'asc'
+    });
     const [joiningId, setJoiningId] = useState<string | null>(null);
 
-    const allClasses = data?.classes ?? [];
-
-    const filteredClasses = allClasses
-        .filter(c => c.topic.toLowerCase().includes(searchQuery.toLowerCase()) || c.subject.toLowerCase().includes(searchQuery.toLowerCase()))
-        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+    const filteredClasses = data?.classes ?? [];
 
     if (isLoading) {
         return (
@@ -52,13 +58,13 @@ export default function StudentSchedulePage() {
                         View all your upcoming and past classes
                     </p>
                 </div>
-                {allClasses.length > 0 && allClasses[0].teacherId && typeof allClasses[0].teacherId === 'object' && allClasses[0].teacherId?.googleMeetLink && (
+                {filteredClasses.length > 0 && filteredClasses[0].teacherId && typeof filteredClasses[0].teacherId === 'object' && filteredClasses[0].teacherId?.googleMeetLink && (
                     <Button 
-                        disabled={joiningId === allClasses[0]._id}
+                        disabled={joiningId === filteredClasses[0]._id}
                         className="bg-emerald-600 hover:bg-emerald-700 text-white gap-2 shadow-lg shadow-emerald-500/20 rounded-xl px-6 h-10 transition-all"
-                        onClick={() => handleJoinClass(allClasses[0]._id, (allClasses[0].teacherId as any).googleMeetLink)}
+                        onClick={() => handleJoinClass(filteredClasses[0]._id, (filteredClasses[0].teacherId as any).googleMeetLink)}
                     >
-                        {joiningId === allClasses[0]._id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
+                        {joiningId === filteredClasses[0]._id ? <Loader2 className="w-4 h-4 animate-spin" /> : <Video className="w-4 h-4" />}
                         Join Your Class
                     </Button>
                 )}
@@ -76,7 +82,10 @@ export default function StudentSchedulePage() {
                             placeholder="Search topics or subjects..."
                             className="pl-9"
                             value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
+                            onChange={(e) => {
+                                setSearchQuery(e.target.value);
+                                setPage(1);
+                            }}
                         />
                     </div>
                 </CardHeader>
@@ -172,12 +181,15 @@ export default function StudentSchedulePage() {
                                                 {/* Status */}
                                                 <td className="px-6 py-4 text-right">
                                                     <Badge
-                                                        variant="secondary"
-                                                        className={
-                                                            c.status === 'completed' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300' :
-                                                                c.status === 'scheduled' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300' :
-                                                                    'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300'
-                                                        }
+                                                        variant="outline"
+                                                        className={cn(
+                                                            "text-[10px] py-0 px-2 h-5 font-semibold capitalize border",
+                                                            c.status === 'completed' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
+                                                            c.status === 'scheduled' ? 'bg-amber-50 text-amber-700 border-amber-100' :
+                                                            c.status === 'ongoing' ? 'bg-blue-50 text-blue-700 border-blue-100' :
+                                                            c.status === 'cancelled' ? 'bg-rose-50 text-rose-700 border-rose-100' :
+                                                            'bg-indigo-50 text-indigo-700 border-indigo-100'
+                                                        )}
                                                     >
                                                         {c.status}
                                                     </Badge>
@@ -208,6 +220,15 @@ export default function StudentSchedulePage() {
                         </table>
                     </div>
                 </CardContent>
+                {data?.pagination && (
+                    <div className="border-t border-border">
+                        <Pagination 
+                            currentPage={data.pagination.page} 
+                            totalPages={data.pagination.totalPages} 
+                            onPageChange={setPage} 
+                        />
+                    </div>
+                )}
             </Card>
         </div>
     );

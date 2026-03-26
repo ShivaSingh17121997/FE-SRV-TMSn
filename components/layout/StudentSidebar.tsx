@@ -6,7 +6,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { cn } from '@/lib/utils';
 import {
     LayoutDashboard, BookOpen, TrendingUp, DollarSign, X,
-    ChevronRight, LogOut, School,
+    ChevronRight, LogOut, School, User, Key, Settings
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -16,6 +16,10 @@ const studentNav = [
     { href: '/student-dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/student-schedule', label: 'My Schedule', icon: BookOpen },
     { href: '/student-reports', label: 'Progress Reports', icon: TrendingUp },
+];
+
+const profileNav = [
+    { href: '/student-profile', label: 'My Profile', icon: User },
 ];
 
 interface StudentSidebarProps {
@@ -94,6 +98,33 @@ export default function StudentSidebar({ open, onClose }: StudentSidebarProps) {
                         Navigation
                     </p>
                     {studentNav.map((item) => {
+                        const Icon = item.icon;
+                        const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
+                        return (
+                            <Link
+                                key={item.href}
+                                href={item.href}
+                                onClick={onClose}
+                                className={cn(
+                                    'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-150',
+                                    'hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-900/20 dark:hover:text-emerald-300',
+                                    isActive
+                                        ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-300 shadow-sm'
+                                        : '',
+                                )}
+                                style={!isActive ? { color: 'var(--sidebar-text)' } : {}}
+                            >
+                                <Icon className="w-4.5 h-4.5 flex-shrink-0" size={18} />
+                                <span className="flex-1">{item.label}</span>
+                                {isActive && <ChevronRight className="w-3.5 h-3.5 opacity-60" />}
+                            </Link>
+                        );
+                    })}
+
+                    {/* <p className="text-xs font-semibold uppercase tracking-widest px-3 py-2 pt-4" style={{ color: 'var(--muted-foreground)' }}>
+                        Profile
+                    </p> */}
+                    {profileNav.map((item) => {
                         const Icon = item.icon;
                         const isActive = pathname === item.href || pathname.startsWith(item.href + '/');
                         return (
