@@ -3,6 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 import type { AuthContextType, Role } from '@/types';
 
 export interface AuthUser {
@@ -55,6 +56,41 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setIsLoading(false);
         }
     }, []);
+
+    // Global fetch interceptor for 401 Unauthorized errors
+    useEffect(() => {
+        const originalFetch = window.fetch;
+        window.fetch = async (...args) => {
+            const response = await originalFetch(...args);
+            if (response.status === 401) {
+                const url = typeof args[0] === 'string' ? args[0] : (args[0] instanceof Request ? args[0].url : '');
+                if (!url.includes('/auth/login')) {
+                    
+                    // Prevent infinite loops from multiple parallel requests triggering this
+                    if (!window.sessionStorage.getItem('isRedirectingToLogin')) {
+                        window.sessionStorage.setItem('isRedirectingToLogin', 'true');
+                        toast.error('Session expired or invalid token. Please log in again.');
+                        
+                        localStorage.removeItem('authToken');
+                        localStorage.removeItem('authUser');
+                        setToken(null);
+                        setUser(null);
+                        if (queryClient) queryClient.clear();
+                        
+                        setTimeout(() => {
+                            window.sessionStorage.removeItem('isRedirectingToLogin');
+                            router.push('/login');
+                        }, 1000);
+                    }
+                }
+            }
+            return response;
+        };
+
+        return () => {
+            window.fetch = originalFetch;
+        };
+    }, [router, queryClient]);
 
     const login = async (email: string, password: string): Promise<boolean> => {
         try {

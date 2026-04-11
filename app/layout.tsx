@@ -9,7 +9,7 @@ const lora = Lora({ subsets: ['latin'], variable: '--font-lora' });
 
 export const metadata: Metadata = {
   title: 'SRV Learning',
-  description: 'SRV Learning – Teacher Management Dashboard',
+  description: 'SRV Learning – Teacher/Student Management Dashboard',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

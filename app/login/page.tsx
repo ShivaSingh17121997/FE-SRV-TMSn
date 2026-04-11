@@ -65,7 +65,7 @@ export default function LoginPage() {
                         SRV <span className="text-primary">Learning</span>
                     </h1>
                     <p className="mt-2 text-sm text-muted-foreground uppercase tracking-widest font-medium">
-                        Teacher Management Dashboard
+                        Teacher/Student Management Dashboard
                     </p>
                 </div>
 

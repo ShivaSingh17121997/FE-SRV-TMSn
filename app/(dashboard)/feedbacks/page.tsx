@@ -323,12 +323,13 @@ export default function FeedbacksPage() {
 
             {/* Details Dialog */}
             <Dialog open={!!selectedFeedback} onOpenChange={(open) => !open && setSelectedFeedback(null)}>
-                <DialogContent className="max-w-xl">
-                    <DialogHeader>
+                <DialogContent className="max-w-xl max-h-[90dvh] md:max-h-[85vh] p-0 flex flex-col overflow-hidden">
+                    <DialogHeader className="px-6 py-5 border-b shrink-0 bg-white z-10">
                         <DialogTitle className="text-xl font-bold font-serif">Feedback Summary</DialogTitle>
                     </DialogHeader>
+                    
                     {selectedFeedback && (
-                        <div className="space-y-5 mt-4">
+                        <div className="space-y-6 px-6 py-5 overflow-y-auto">
                             <div className="flex justify-between items-center bg-orange-50/50 p-4 rounded-xl border border-orange-100">
                                 <div>
                                     <h4 className="text-xs font-bold text-orange-600 uppercase tracking-widest mb-1">Overall Rating</h4>
