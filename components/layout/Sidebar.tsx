@@ -7,7 +7,7 @@ import { cn } from '@/lib/utils';
 import {
     LayoutDashboard, Users, User, BookOpen, BarChart3, Settings,
     GraduationCap, PlusCircle, TrendingUp, DollarSign, Shield, X,
-    ChevronRight, LogOut, School, UserPlus, ClipboardList
+    ChevronRight, LogOut, School, UserPlus, ClipboardList, MessageSquare
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -34,6 +34,7 @@ const adminNav = [
     { href: '/reports', label: 'Reports', icon: BarChart3 },
     // { href: '/homework', label: 'Homework', icon: ClipboardList },
     { href: '/permissions', label: 'Permissions', icon: Shield },
+    { href: '/feedbacks', label: 'Feedbacks', icon: MessageSquare },
     { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -46,6 +47,7 @@ const superAdminNav = [
     { href: '/users', label: 'Manage Users', icon: UserPlus },
     // { href: '/homework', label: 'Homework', icon: ClipboardList },
     { href: '/permissions', label: 'Permissions', icon: Shield },
+    { href: '/feedbacks', label: 'Feedbacks', icon: MessageSquare },
     { href: '/settings', label: 'Settings', icon: Settings },
 ];
 

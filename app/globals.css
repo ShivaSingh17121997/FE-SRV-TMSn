@@ -2,6 +2,8 @@
 
 @theme {
   --font-sans: 'Inter', sans-serif;
+  --font-nunito: 'Nunito', sans-serif;
+  --font-lora: 'Lora', serif;
   --color-primary: #3b82f6;
   --color-primary-dark: #2563eb;
   --color-sidebar-light: #f8fafc;
