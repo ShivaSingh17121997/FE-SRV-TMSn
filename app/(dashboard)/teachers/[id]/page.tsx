@@ -8,7 +8,7 @@ import { usePayments } from '@/lib/hooks/usePayments';
 import { useReports } from '@/lib/hooks/useReports';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Table, TableBody, TableCell, TableHeader, TableRow } from '@/components/ui/table';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, MapPin, Mail, Phone, BookOpen, GraduationCap, Users, DollarSign, TrendingUp, Video, Loader2, AlertCircle } from 'lucide-react';
@@ -205,20 +205,26 @@ export default function TeacherDetailsPage() {
                 <TabsContent value="classes" className="mt-6">
                     <Card className="shadow-sm border overflow-hidden" style={{ background: 'var(--card)', borderColor: 'var(--border)' }}>
                         <CardContent className="p-0">
-                            <div className="overflow-x-auto">
-                                <table className="w-full text-sm">
-                                    <thead>
-                                        <tr className="bg-muted/50 border-b">
-                                            {['Student', 'Topic', 'Date', 'Amount', 'Status'].map((h) => (
-                                                <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">{h}</th>
-                                            ))}
-                                        </tr>
-                                    </thead>
+                            <div className="w-full overflow-x-auto">
+                                <Table className="min-w-[600px] text-sm">
+                                    <TableHeader>
+                                        <TableRow className="bg-muted/80 hover:bg-muted/80 border-b border-border">
+                                            <TableHead className="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Student</TableHead>
+                                            <TableHead className="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Topic</TableHead>
+                                            <TableHead className="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Date</TableHead>
+                                            <TableHead className="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Amount</TableHead>
+                                            <TableHead className="px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wider">Status</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
                                     <TableBody>
                                         {classes.length === 0 ? (
-                                            <tr><td colSpan={5} className="text-center py-20 text-muted-foreground bg-accent/5">No class history found</td></tr>
+                                            <TableRow>
+                                                <TableCell colSpan={5} className="text-center py-20 text-muted-foreground bg-accent/5">
+                                                    No class history found
+                                                </TableCell>
+                                            </TableRow>
                                         ) : (
-                                            classes.map((c, i) => (
+                                            classes.map((c) => (
                                                 <TableRow key={c._id} className="hover:bg-muted/30 transition-colors border-b last:border-0 border-border/40">
                                                     <TableCell className="px-4 py-3 font-semibold text-foreground">
                                                         {c.studentId && typeof c.studentId === 'object' ? c.studentId.name : 'Unknown'}
@@ -226,12 +232,14 @@ export default function TeacherDetailsPage() {
                                                     <TableCell className="px-4 py-3 text-foreground">{c.topic}</TableCell>
                                                     <TableCell className="px-4 py-3 text-muted-foreground">{format(new Date(c.date), 'dd MMM yyyy')}</TableCell>
                                                     <TableCell className="px-4 py-3 font-bold text-emerald-600">₹{c.amount}</TableCell>
-                                                    <TableCell className="px-4 py-3"><Badge className={`text-[10px] border-0 h-5 px-1.5 font-bold ${statusBadge(c.status)}`}>{c.status}</Badge></TableCell>
+                                                    <TableCell className="px-4 py-3">
+                                                        <Badge className={`text-[10px] border-0 h-5 px-1.5 font-bold ${statusBadge(c.status)}`}>{c.status}</Badge>
+                                                    </TableCell>
                                                 </TableRow>
                                             ))
                                         )}
                                     </TableBody>
-                                </table>
+                                </Table>
                             </div>
                         </CardContent>
                     </Card>

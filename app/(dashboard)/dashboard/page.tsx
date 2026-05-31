@@ -7,19 +7,18 @@ import { usePayments } from '@/lib/hooks/usePayments';
 import { useTeacher, useTeachers } from '@/lib/hooks/useTeachers';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, BookOpen, DollarSign, CalendarClock, TrendingUp, ArrowUpRight, Loader2, Video, MoreVertical, ExternalLink, ClipboardList } from 'lucide-react';
+import { Users, BookOpen, DollarSign, CalendarClock, TrendingUp, ArrowUpRight, Loader2, Video, ExternalLink, GraduationCap } from 'lucide-react';
 import { format } from 'date-fns';
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
 import type { ApiStudent } from '@/lib/hooks/useStudents';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { apiPost } from '@/lib/api';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Pagination } from '@/components/dashboard/Pagination';
-import AddHomeworkDialog from '@/components/dashboard/AddHomeworkDialog';
+import { useQueryClient } from '@tanstack/react-query';
 
 
 export default function DashboardPage() {
@@ -38,7 +37,7 @@ export default function DashboardPage() {
     const { data: paymentsData, isLoading: loadingPayments } = usePayments();
 
     const [processingId, setProcessingId] = useState<string | null>(null);
-    const [homeworkDialog, setHomeworkDialog] = useState(false);
+    const queryClient = useQueryClient();
 
     const isLoading = loadingStudents || loadingClasses || loadingPayments || (isAdmin && loadingTeachers);
 
@@ -54,7 +53,7 @@ export default function DashboardPage() {
             const link = meetLink.startsWith('http') ? meetLink : `https://${meetLink}`;
             window.open(link, '_blank');
             toast.success('Class started successfully');
-            setTimeout(() => window.location.reload(), 1000);
+            await queryClient.invalidateQueries({ queryKey: ['classes'] });
         } catch (error: any) {
             toast.error(error.message || 'Failed to start class');
         } finally {
@@ -67,7 +66,7 @@ export default function DashboardPage() {
             setProcessingId(classId);
             await apiPost('/classes/end', { classId });
             toast.success('Class ended successfully');
-            setTimeout(() => window.location.reload(), 1000);
+            await queryClient.invalidateQueries({ queryKey: ['classes'] });
         } catch (error: any) {
             toast.error(error.message || 'Failed to end class');
         } finally {
@@ -118,7 +117,7 @@ export default function DashboardPage() {
         {
             title: isAdmin ? 'Total Teachers' : 'Total Students',
             value: isAdmin ? (allTeachersData?.pagination?.total ?? 0) : (studentsData?.pagination?.total ?? 0),
-            icon: isAdmin ? ExternalLink : Users,
+            icon: isAdmin ? GraduationCap : Users,
             color: 'blue',
             trend: isAdmin ? 'Staff members' : 'Active enrollment',
             borderColor: 'border-blue-500',
@@ -215,15 +214,6 @@ export default function DashboardPage() {
                         Join Your Meet
                     </a>
                 )}
-                {/* {user?.role === 'teacher' && (
-                    <Button 
-                        onClick={() => setHomeworkDialog(true)}
-                        className="bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl px-6 h-10 font-bold gap-2 shadow-lg shadow-emerald-600/20 transition-all active:scale-95"
-                    >
-                        <ClipboardList className="w-4 h-4" />
-                        Assign Homework
-                    </Button>
-                )} */}
             </div>
 
             {/* Stats grid */}
@@ -437,11 +427,6 @@ export default function DashboardPage() {
                 </div>
             )}
 
-            <AddHomeworkDialog
-                open={homeworkDialog}
-                onOpenChange={setHomeworkDialog}
-                teacherId={user?._id || ''}
-            />
         </div>
     );
 }
