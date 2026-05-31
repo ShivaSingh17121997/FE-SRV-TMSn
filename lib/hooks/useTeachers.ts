@@ -22,7 +22,7 @@ interface TeachersResponse {
     success: boolean;
     data: {
         teachers: ApiTeacher[];
-        pagination: { total: number; page: number; limit: number; totalPages: number };
+        pagination: { total: number; page: number; limit: number; totalPages: number; from: number; to: number; };
     };
 }
 

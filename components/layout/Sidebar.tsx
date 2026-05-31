@@ -29,6 +29,7 @@ const teacherNav = [
 const adminNav = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/teachers', label: 'Teachers', icon: GraduationCap },
+    { href: '/teachers-onboarding', label: 'Teacher Onboarding', icon: ClipboardList },
     { href: '/students', label: 'Students', icon: Users },
     { href: '/classes', label: 'Classes', icon: BookOpen },
     { href: '/reports', label: 'Reports', icon: BarChart3 },
@@ -41,6 +42,7 @@ const adminNav = [
 const superAdminNav = [
     { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
     { href: '/teachers', label: 'Teachers', icon: GraduationCap },
+    { href: '/teachers-onboarding', label: 'Teacher Onboarding', icon: ClipboardList },
     { href: '/students', label: 'Students', icon: Users },
     { href: '/classes', label: 'Classes', icon: BookOpen },
     { href: '/reports', label: 'Reports', icon: BarChart3 },
