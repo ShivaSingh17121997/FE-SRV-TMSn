@@ -19,6 +19,22 @@ interface FieldErrors {
     [key: string]: string;
 }
 
+// ─── Error field helper ────────────────────────────────────────────────────
+function Field({ id, label, required, tip, children, error }: {
+    id?: string; label: string; required?: boolean; tip?: string; children: React.ReactNode; error?: string;
+}) {
+    return (
+        <div className="field">
+            <label htmlFor={id}>
+                {label} {required && <span className="req">*</span>}
+                {tip && <span className="tip">{tip}</span>}
+            </label>
+            {children}
+            {error && <span className="err-msg show">{error}</span>}
+        </div>
+    );
+}
+
 export default function TeacherOnboardingPage() {
     const [currentStep, setCurrentStep] = useState<Step>(1);
     const [formData, setFormData] = useState<any>({});
@@ -184,21 +200,7 @@ export default function TeacherOnboardingPage() {
         return `step-line${completedSteps.has(step) ? ' done' : ''}`;
     }
 
-    // ─── Error field helper ────────────────────────────────────────────────────
-    function Field({ id, label, required, tip, children, error }: {
-        id?: string; label: string; required?: boolean; tip?: string; children: React.ReactNode; error?: string;
-    }) {
-        return (
-            <div className="field">
-                <label htmlFor={id}>
-                    {label} {required && <span className="req">*</span>}
-                    {tip && <span className="tip">{tip}</span>}
-                </label>
-                {children}
-                {error && <span className="err-msg show">{error}</span>}
-            </div>
-        );
-    }
+
 
     // ─── Render ───────────────────────────────────────────────────────────────
     if (!isLoaded) return null;
